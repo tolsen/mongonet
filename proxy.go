@@ -297,15 +297,7 @@ func NewProxy(pc ProxyConfig) Proxy {
 }
 
 func (p *Proxy) NewLogger(prefix string) *slogger.Logger {
-
-	level := slogger.INFO
-	if p.config.VerboseLevel == 1 {
-		level = slogger.DEBUG
-	} else if p.config.VerboseLevel == 2 {
-		level = slogger.OFF
-	}
-
-	filters := []slogger.TurboFilter{slogger.TurboLevelFilter(level)}
+	filters := []slogger.TurboFilter{slogger.TurboLevelFilter(p.config.LogLevel)}
 
 	return &slogger.Logger{prefix, []slogger.Appender{slogger.StdOutAppender()}, 0, filters}
 }

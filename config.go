@@ -2,6 +2,8 @@ package mongonet
 
 import "fmt"
 
+import "github.com/mongodb/slogger/v2/slogger"
+
 type SSLPair struct {
 	CertFile string
 	KeyFile  string
@@ -18,7 +20,7 @@ type ProxyConfig struct {
 	UseSSL  bool
 	SSLKeys []SSLPair
 
-	VerboseLevel int
+	LogLevel slogger.Level
 
 	InterceptorFactory ProxyInterceptorFactory
 
