@@ -299,7 +299,12 @@ func NewProxy(pc ProxyConfig) Proxy {
 func (p *Proxy) NewLogger(prefix string) *slogger.Logger {
 	filters := []slogger.TurboFilter{slogger.TurboLevelFilter(p.config.LogLevel)}
 
-	return &slogger.Logger{prefix, []slogger.Appender{slogger.StdOutAppender()}, 0, filters}
+	appenders := p.config.Appenders
+	if appenders == nil {
+		appenders = []slogger.Appender{slogger.StdOutAppender()}
+	}
+
+	return &slogger.Logger{prefix, appenders, 0, filters}
 }
 
 func (p *Proxy) Run() error {

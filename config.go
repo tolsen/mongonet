@@ -20,7 +20,8 @@ type ProxyConfig struct {
 	UseSSL  bool
 	SSLKeys []SSLPair
 
-	LogLevel slogger.Level
+	LogLevel  slogger.Level
+	Appenders []slogger.Appender
 
 	InterceptorFactory ProxyInterceptorFactory
 
@@ -36,9 +37,10 @@ func NewProxyConfig(bindHost string, bindPort int, mongoHost string, mongoPort i
 		false, // MongoSSL
 		false, // UseSSL
 		nil,
-		0,   // VerboseLevel
-		nil, // InterceptorFactory
-		nil, // ConnectionPoolHook
+		slogger.OFF, // LogLevel
+		nil,         // Appenders
+		nil,         // InterceptorFactory
+		nil,         // ConnectionPoolHook
 	}
 }
 
