@@ -1,5 +1,6 @@
 package mongonet
 
+import "crypto/x509"
 import "fmt"
 
 import "github.com/mongodb/slogger/v2/slogger"
@@ -13,9 +14,11 @@ type ProxyConfig struct {
 	BindHost string
 	BindPort int
 
-	MongoHost string
-	MongoPort int
-	MongoSSL  bool
+	MongoHost          string
+	MongoPort          int
+	MongoSSL           bool
+	MongoRootCAs       *x509.CertPool
+	MongoSSLSkipVerify bool
 
 	UseSSL  bool
 	SSLKeys []SSLPair
@@ -35,6 +38,8 @@ func NewProxyConfig(bindHost string, bindPort int, mongoHost string, mongoPort i
 		mongoHost,
 		mongoPort,
 		false, // MongoSSL
+		nil,   // MongoRootCAs
+		false, // MongoSSLSkipVerify
 		false, // UseSSL
 		nil,
 		slogger.OFF, // LogLevel

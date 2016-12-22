@@ -1,6 +1,7 @@
 package mongonet
 
 import "crypto/tls"
+import "crypto/x509"
 import "fmt"
 import "net"
 import "sync"
@@ -26,6 +27,8 @@ type ConnectionHook func(net.Conn) error
 type ConnectionPool struct {
 	address        string
 	ssl            bool
+	rootCAs        *x509.CertPool
+	sslSkipVerify  bool
 	timeoutSeconds int64
 	trace          bool
 
@@ -37,8 +40,8 @@ type ConnectionPool struct {
 	postCreateHook ConnectionHook
 }
 
-func NewConnectionPool(address string, ssl bool, hook func(net.Conn) error) *ConnectionPool {
-	return &ConnectionPool{address, ssl, 3600, false, []*PooledConnection{}, sync.Mutex{}, 0, hook}
+func NewConnectionPool(address string, ssl bool, rootCAs *x509.CertPool, sslSkipVerify bool, hook func(net.Conn) error) *ConnectionPool {
+	return &ConnectionPool{address, ssl, rootCAs, sslSkipVerify, 3600, false, []*PooledConnection{}, sync.Mutex{}, 0, hook}
 }
 
 func (cp *ConnectionPool) Trace(s string) {
@@ -94,9 +97,7 @@ func (cp *ConnectionPool) Get() (*PooledConnection, error) {
 	var newConn net.Conn
 
 	if cp.ssl {
-		tlsConfig := &tls.Config{}
-		tlsConfig.InsecureSkipVerify = true
-
+		tlsConfig := &tls.Config{RootCAs: cp.rootCAs, InsecureSkipVerify: cp.sslSkipVerify}
 		newConn, err = tls.Dial("tcp", cp.address, tlsConfig)
 	} else {
 		newConn, err = net.Dial("tcp", cp.address)

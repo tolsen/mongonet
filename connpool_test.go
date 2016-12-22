@@ -61,7 +61,7 @@ func TestConnectionPool1(t *testing.T) {
 		t.Errorf("can't start %s", err)
 	}
 
-	cp := NewConnectionPool(fmt.Sprintf("127.0.0.1:%d", port), false, nil)
+	cp := NewConnectionPool(fmt.Sprintf("127.0.0.1:%d", port), false, nil, false, nil)
 	cp.timeoutSeconds = 1
 
 	// first loop
