@@ -87,6 +87,8 @@ func main() {
 
 	pc.InterceptorFactory = &MyFactory{}
 
+	pc.MongoSSLSkipVerify = true
+
 	proxy := mongonet.NewProxy(pc)
 
 	err := proxy.Run()
