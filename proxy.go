@@ -102,7 +102,8 @@ func (ps *ProxySession) RespondToCommand(clientMessage Message, doc SimpleBSON) 
 func (ps *ProxySession) respondWithError(clientMessage Message, err error) error {
 	ps.logger.Logf(slogger.INFO, "respondWithError %s", err)
 
-	if clientMessage.Header().OpCode == OP_QUERY {
+	switch clientMessage.Header().OpCode {
+	case OP_QUERY, OP_GET_MORE:
 		errDoc := bson.D{{"$err", err.Error()}, {"ok", 0}}
 		doc, myErr := SimpleBSONConvert(errDoc)
 		if myErr != nil {
@@ -122,7 +123,7 @@ func (ps *ProxySession) respondWithError(clientMessage Message, err error) error
 			[]SimpleBSON{doc},
 		}
 		return SendMessage(rm, ps.conn)
-	} else if clientMessage.Header().OpCode == OP_COMMAND {
+	case OP_COMMAND:
 		errDoc := bson.D{{"errmsg", err.Error()}, {"ok", 0}}
 		doc, myErr := SimpleBSONConvert(errDoc)
 		if myErr != nil {
@@ -140,7 +141,7 @@ func (ps *ProxySession) respondWithError(clientMessage Message, err error) error
 			[]SimpleBSON{},
 		}
 		return SendMessage(rm, ps.conn)
-	} else {
+	default:
 		panic("impossible")
 	}
 
