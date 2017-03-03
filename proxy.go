@@ -104,7 +104,7 @@ func (ps *ProxySession) respondWithError(clientMessage Message, err error) error
 
 	switch clientMessage.Header().OpCode {
 	case OP_QUERY, OP_GET_MORE:
-		errDoc := bson.D{{"$err", err.Error()}, {"ok", 0}}
+		errDoc := bson.D{{"errmsg", err.Error()}, {"ok", 0}}
 		doc, myErr := SimpleBSONConvert(errDoc)
 		if myErr != nil {
 			return myErr
