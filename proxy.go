@@ -27,12 +27,42 @@ type ProxySession struct {
 	SSLServerName string
 }
 
+type MongoError struct {
+	err      error
+	code     int
+	codeName string
+}
+
+var NoMongoError MongoError = MongoError{}
+
+func NewMongoError(err error, code int, codeName string) MongoError {
+	return MongoError{err, code, codeName}
+}
+
+func (me MongoError) ToBSON() bson.D {
+	if me == NoMongoError {
+		return bson.D{{"ok", 1}}
+	}
+
+	doc := bson.D{{"ok", 0}}
+
+	if me.err != nil {
+		doc = append(doc, bson.DocElem{"errmsg", me.err.Error()})
+	}
+
+	doc = append(doc,
+		bson.DocElem{"code", me.code},
+		bson.DocElem{"codeName", me.codeName})
+
+	return doc
+}
+
 type ResponseInterceptor interface {
 	InterceptMongoToClient(m Message) (Message, error)
 }
 
 type ProxyInterceptor interface {
-	InterceptClientToMongo(m Message) (Message, ResponseInterceptor, error)
+	InterceptClientToMongo(m Message) (Message, ResponseInterceptor, MongoError)
 	Close()
 	TrackRequest(MessageHeader)
 	TrackResponse(MessageHeader)
@@ -99,13 +129,12 @@ func (ps *ProxySession) RespondToCommand(clientMessage Message, doc SimpleBSON) 
 
 }
 
-func (ps *ProxySession) respondWithError(clientMessage Message, err error) error {
-	ps.logger.Logf(slogger.INFO, "respondWithError %s", err)
+func (ps *ProxySession) respondWithError(clientMessage Message, mongoErr MongoError) error {
+	ps.logger.Logf(slogger.INFO, "respondWithError %v", mongoErr)
 
 	switch clientMessage.Header().OpCode {
 	case OP_QUERY, OP_GET_MORE:
-		errDoc := bson.D{{"errmsg", err.Error()}, {"ok", 0}}
-		doc, myErr := SimpleBSONConvert(errDoc)
+		doc, myErr := SimpleBSONConvert(mongoErr.ToBSON())
 		if myErr != nil {
 			return myErr
 		}
@@ -124,8 +153,7 @@ func (ps *ProxySession) respondWithError(clientMessage Message, err error) error
 		}
 		return SendMessage(rm, ps.conn)
 	case OP_COMMAND:
-		errDoc := bson.D{{"errmsg", err.Error()}, {"ok", 0}}
-		doc, myErr := SimpleBSONConvert(errDoc)
+		doc, myErr := SimpleBSONConvert(mongoErr.ToBSON())
 		if myErr != nil {
 			return myErr
 		}
@@ -158,21 +186,22 @@ func (ps *ProxySession) doLoop(pooledConn *PooledConnection) (*PooledConnection,
 
 	var respInter ResponseInterceptor
 	if ps.interceptor != nil {
+		var mongoErr MongoError
 		ps.interceptor.TrackRequest(m.Header())
 
-		m, respInter, err = ps.interceptor.InterceptClientToMongo(m)
-		if err != nil {
+		m, respInter, mongoErr = ps.interceptor.InterceptClientToMongo(m)
+		if mongoErr != NoMongoError {
 			if m == nil {
 				if pooledConn != nil {
 					pooledConn.Close()
 				}
-				return nil, err
+				return nil, mongoErr.err
 			}
 			if !m.HasResponse() {
 				// we can't respond, so we just fail
-				return pooledConn, err
+				return pooledConn, mongoErr.err
 			}
-			err = ps.respondWithError(m, err)
+			err = ps.respondWithError(m, mongoErr)
 			if err != nil {
 				return pooledConn, NewStackErrorf("couldn't send error response to client %s", err)
 			}

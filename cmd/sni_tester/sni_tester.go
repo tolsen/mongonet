@@ -8,6 +8,11 @@ import "gopkg.in/mgo.v2/bson"
 
 import "github.com/erh/mongonet"
 
+const (
+	errorCode     = 20000
+	errorCodeName = "SNITesterError"
+)
+
 type MyFactory struct {
 }
 
@@ -28,33 +33,33 @@ func (myi *MyInterceptor) sniResponse() mongonet.SimpleBSON {
 	return raw
 }
 
-func (myi *MyInterceptor) InterceptClientToMongo(m mongonet.Message) (mongonet.Message, mongonet.ResponseInterceptor, error) {
+func (myi *MyInterceptor) InterceptClientToMongo(m mongonet.Message) (mongonet.Message, mongonet.ResponseInterceptor, mongonet.MongoError) {
 	switch mm := m.(type) {
 	case *mongonet.QueryMessage:
 		if !mongonet.NamespaceIsCommand(mm.Namespace) {
-			return m, nil, nil
+			return m, nil, mongonet.NoMongoError
 		}
 
 		query, err := mm.Query.ToBSOND()
 		if err != nil || len(query) == 0 {
 			// let mongod handle error message
-			return m, nil, nil
+			return m, nil, mongonet.NoMongoError
 		}
 
 		cmdName := query[0].Name
 		if cmdName != "sni" {
-			return m, nil, nil
+			return m, nil, mongonet.NoMongoError
 		}
 
-		return nil, nil, myi.ps.RespondToCommand(mm, myi.sniResponse())
+		return nil, nil, newSNIError(myi.ps.RespondToCommand(mm, myi.sniResponse()))
 	case *mongonet.CommandMessage:
 		if mm.CmdName != "sni" {
-			return mm, nil, nil
+			return mm, nil, mongonet.NoMongoError
 		}
-		return nil, nil, myi.ps.RespondToCommand(mm, myi.sniResponse())
+		return nil, nil, newSNIError(myi.ps.RespondToCommand(mm, myi.sniResponse()))
 	}
 
-	return m, nil, nil
+	return m, nil, mongonet.NoMongoError
 }
 
 func (myi *MyInterceptor) Close() {
@@ -95,4 +100,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func newSNIError(err error) mongonet.MongoError {
+	if err == nil {
+		return mongonet.NoMongoError
+	}
+
+	return mongonet.NewMongoError(err, errorCode, errorCodeName)
 }
