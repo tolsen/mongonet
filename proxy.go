@@ -282,7 +282,7 @@ func (ps *ProxySession) Run() {
 		// we do this here so that we can get the SNI server name
 		err = c.Handshake()
 		if err != nil {
-			ps.logger.Logf(slogger.ERROR, "error doing tls handshake %s", err)
+			ps.logger.Logf(slogger.WARN, "error doing tls handshake %s", err)
 			return
 		}
 		ps.SSLServerName = c.ConnectionState().ServerName
