@@ -385,6 +385,7 @@ func (p *Proxy) Run() error {
 		if p.config.TCPKeepAlivePeriod > 0 {
 			switch conn := conn.(type) {
 			case *net.TCPConn:
+				p.logger.Logf(slogger.DEBUG, "Setting keep alive period to %v", p.config.TCPKeepAlivePeriod)
 				conn.SetKeepAlive(true)
 				conn.SetKeepAlivePeriod(p.config.TCPKeepAlivePeriod)
 			default:
