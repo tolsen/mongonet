@@ -348,8 +348,7 @@ func (p *Proxy) Run() error {
 	bindTo := fmt.Sprintf("%s:%d", p.config.BindHost, p.config.BindPort)
 	p.logger.Logf(slogger.WARN, "listening on %s", bindTo)
 
-	var err error
-	var ln net.Listener
+	var tlsConfig *tls.Config
 
 	if p.config.UseSSL {
 		if len(p.config.SSLKeys) == 0 {
@@ -365,27 +364,36 @@ func (p *Proxy) Run() error {
 			certs = append(certs, cer)
 		}
 
-		config := &tls.Config{Certificates: certs}
+		tlsConfig = &tls.Config{Certificates: certs}
 
-		config.BuildNameToCertificate()
-
-		ln, err = tls.Listen("tcp", bindTo, config)
-		if err != nil {
-			return fmt.Errorf("cannot start listen tls in proxy: %s", err)
-		}
-
-	} else {
-		ln, err = net.Listen("tcp", bindTo)
-		if err != nil {
-			return NewStackErrorf("cannot start listening in proxy: %s", err)
-		}
+		tlsConfig.BuildNameToCertificate()
 	}
+
+	ln, err := net.Listen("tcp", bindTo)
+	if err != nil {
+		return NewStackErrorf("cannot start listening in proxy: %s", err)
+	}
+
 	defer ln.Close()
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			return NewStackErrorf("could not accept in proxy: %s", err)
+		}
+
+		if p.config.TCPKeepAlivePeriod > 0 {
+			switch conn := conn.(type) {
+			case *net.TCPConn:
+				conn.SetKeepAlive(true)
+				conn.SetKeepAlivePeriod(p.config.TCPKeepAlivePeriod)
+			default:
+				p.logger.Logf(slogger.WARN, "Want to set TCP keep alive on accepted connection but connection is not *net.TCPConn.  It is %T", conn)
+			}
+		}
+
+		if p.config.UseSSL {
+			conn = tls.Server(conn, tlsConfig)
 		}
 
 		c := &ProxySession{p, conn, nil, p.NewLogger(fmt.Sprintf("ProxySession %s", conn.RemoteAddr())), ""}

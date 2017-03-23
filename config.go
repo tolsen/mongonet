@@ -1,9 +1,12 @@
 package mongonet
 
-import "crypto/x509"
-import "fmt"
+import (
+	"crypto/x509"
+	"fmt"
+	"time"
 
-import "github.com/mongodb/slogger/v2/slogger"
+	"github.com/mongodb/slogger/v2/slogger"
+)
 
 type SSLPair struct {
 	CertFile string
@@ -29,6 +32,8 @@ type ProxyConfig struct {
 	InterceptorFactory ProxyInterceptorFactory
 
 	ConnectionPoolHook ConnectionHook
+
+	TCPKeepAlivePeriod time.Duration // set to 0 for no keep alives
 }
 
 func NewProxyConfig(bindHost string, bindPort int, mongoHost string, mongoPort int) ProxyConfig {
@@ -46,6 +51,7 @@ func NewProxyConfig(bindHost string, bindPort int, mongoHost string, mongoPort i
 		nil,         // Appenders
 		nil,         // InterceptorFactory
 		nil,         // ConnectionPoolHook
+		0,           // TCPKeepAlivePeriod
 	}
 }
 
