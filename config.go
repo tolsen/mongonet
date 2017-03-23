@@ -1,12 +1,10 @@
 package mongonet
 
-import (
-	"crypto/x509"
-	"fmt"
-	"time"
+import "crypto/x509"
+import "fmt"
+import "time"
 
-	"github.com/mongodb/slogger/v2/slogger"
-)
+import "github.com/mongodb/slogger/v2/slogger"
 
 type SSLPair struct {
 	CertFile string
