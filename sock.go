@@ -42,8 +42,8 @@ func ReadMessage(reader io.Reader) (Message, error) {
 		return nil, NewStackErrorf("message too big %d", header.Size)
 	}
 
-	if header.Size < 0 || header.Size-4 > MaxInt32 {
-		return nil, NewStackErrorf("message header has invalid size.")
+	if header.Size-4 < 0 || header.Size-4 > MaxInt32 {
+		return nil, NewStackErrorf("message header has invalid size (%v).", header.Size)
 	}
 	restBuf := make([]byte, header.Size-4)
 
