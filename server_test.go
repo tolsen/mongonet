@@ -158,6 +158,7 @@ func TestServer(t *testing.T) {
 			false,
 			nil,
 			0,
+			0,
 			slogger.DEBUG,
 			nil,
 		},
