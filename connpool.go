@@ -1,12 +1,16 @@
 package mongonet
 
-import "crypto/tls"
-import "crypto/x509"
-import "fmt"
-import "net"
-import "sync"
-import "sync/atomic"
-import "time"
+import (
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"net"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/mongodb/slogger/v2/slogger"
+)
 
 type PooledConnection struct {
 	conn         net.Conn
@@ -38,10 +42,12 @@ type ConnectionPool struct {
 	totalCreated int64
 
 	postCreateHook ConnectionHook
+
+	logger *slogger.Logger
 }
 
-func NewConnectionPool(address string, ssl bool, rootCAs *x509.CertPool, sslSkipVerify bool, hook func(net.Conn) error) *ConnectionPool {
-	return &ConnectionPool{address, ssl, rootCAs, sslSkipVerify, 3600, false, []*PooledConnection{}, sync.Mutex{}, 0, hook}
+func NewConnectionPool(address string, ssl bool, rootCAs *x509.CertPool, sslSkipVerify bool, hook func(net.Conn) error, logger *slogger.Logger) *ConnectionPool {
+	return &ConnectionPool{address, ssl, rootCAs, sslSkipVerify, 3600, false, []*PooledConnection{}, sync.Mutex{}, 0, hook, logger}
 }
 
 func (cp *ConnectionPool) Trace(s string) {
@@ -63,6 +69,8 @@ func (cp *ConnectionPool) CurrentInPool() int {
 func (cp *ConnectionPool) rawGet() *PooledConnection {
 	cp.poolMutex.Lock()
 	defer cp.poolMutex.Unlock()
+
+	cp.logger.Logf(slogger.INFO, "connection pool len: ", len(cp.pool))
 
 	last := len(cp.pool) - 1
 	if last < 0 {
@@ -86,6 +94,7 @@ func (cp *ConnectionPool) Get() (*PooledConnection, error) {
 
 		// if a connection has been idle for more than an hour, don't re-use it
 		if time.Now().Unix()-conn.lastUsedUnix < cp.timeoutSeconds {
+			cp.logger.Logf(slogger.INFO, "reusing connection from pool")
 			conn.closed = false
 			return conn, nil
 		}
@@ -103,6 +112,8 @@ func (cp *ConnectionPool) Get() (*PooledConnection, error) {
 		newConn, err = net.Dial("tcp", cp.address)
 	}
 
+	cp.logger.Logf(slogger.INFO, "dialed new connection")
+
 	if err != nil {
 		return &PooledConnection{}, err
 	}
@@ -116,6 +127,7 @@ func (cp *ConnectionPool) Get() (*PooledConnection, error) {
 	}
 
 	atomic.AddInt64(&cp.totalCreated, 1)
+	cp.logger.Logf(slogger.INFO, "total connections dialed: %v", atomic.LoadInt64(&cp.totalCreated))
 	return &PooledConnection{newConn, 0, cp, false, false}, nil
 }
 
@@ -136,4 +148,5 @@ func (cp *ConnectionPool) Put(conn *PooledConnection) {
 	defer cp.poolMutex.Unlock()
 	cp.pool = append(cp.pool, conn)
 
+	cp.logger.Logf(slogger.INFO, "Put connection back in pool.  Connection pool len: %v", len(cp.pool))
 }

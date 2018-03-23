@@ -49,3 +49,14 @@ func NewProxyConfig(bindHost string, bindPort int, mongoHost string, mongoPort i
 func (pc *ProxyConfig) MongoAddress() string {
 	return fmt.Sprintf("%s:%d", pc.MongoHost, pc.MongoPort)
 }
+
+func (pc *ProxyConfig) NewLogger(prefix string) *slogger.Logger {
+	filters := []slogger.TurboFilter{slogger.TurboLevelFilter(pc.LogLevel)}
+
+	appenders := pc.Appenders
+	if appenders == nil {
+		appenders = []slogger.Appender{slogger.StdOutAppender()}
+	}
+
+	return &slogger.Logger{prefix, appenders, 0, filters}
+}

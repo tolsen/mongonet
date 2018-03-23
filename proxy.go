@@ -291,11 +291,19 @@ func (ps *ProxySession) doLoop(pooledConn *PooledConnection) (*PooledConnection,
 }
 
 func NewProxy(pc ProxyConfig) Proxy {
-	p := Proxy{pc, NewConnectionPool(pc.MongoAddress(), pc.MongoSSL, pc.MongoRootCAs, pc.MongoSSLSkipVerify, pc.ConnectionPoolHook), nil}
-
-	p.logger = p.NewLogger("proxy")
-
-	return p
+	logger := pc.NewLogger("proxy")
+	return Proxy{
+		pc,
+		NewConnectionPool(
+			pc.MongoAddress(),
+			pc.MongoSSL,
+			pc.MongoRootCAs,
+			pc.MongoSSLSkipVerify,
+			pc.ConnectionPoolHook,
+			logger,
+		),
+		logger,
+	}
 }
 
 func (p *Proxy) Run() error {
@@ -305,17 +313,6 @@ func (p *Proxy) Run() error {
 		p,
 	}
 	return server.Run()
-}
-
-func (p *Proxy) NewLogger(prefix string) *slogger.Logger {
-	filters := []slogger.TurboFilter{slogger.TurboLevelFilter(p.config.LogLevel)}
-
-	appenders := p.config.Appenders
-	if appenders == nil {
-		appenders = []slogger.Appender{slogger.StdOutAppender()}
-	}
-
-	return &slogger.Logger{prefix, appenders, 0, filters}
 }
 
 func (p *Proxy) CreateWorker(session *Session) (ServerWorker, error) {
